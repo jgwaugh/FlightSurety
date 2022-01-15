@@ -144,12 +144,16 @@ contract FlightSuretyApp {
     * @dev Register a future flight for insuring.
     *
     */  
-    function registerFlight
-                                (
+    function registerFlight(
+                                    address airline,
+                                    string flight,
+                                    uint256 timestamp
                                 )
                                 external
-                                pure
+                                requireIsOperational
     {
+         bytes32 key = keccak256(abi.encodePacked(airline, flight, timestamp));
+         flights[key] = Flight(true, 0, timestamp, airline);
 
     }
     
@@ -157,16 +161,23 @@ contract FlightSuretyApp {
     * @dev Called after oracle has updated flight status
     *
     */  
-    function processFlightStatus
-                                (
+    function processFlightStatus(
                                     address airline,
-                                    string memory flight,
+                                    string flight,
                                     uint256 timestamp,
                                     uint8 statusCode
                                 )
                                 internal
-                                pure
+                                requireIsOperational
+                                
     {
+        bytes32 key = keccak256(abi.encodePacked(airline, flight, timestamp));
+        if (statusCode == STATUS_CODE_LATE_AIRLINE){
+            flight_surety.setFlightCancelled(key);
+            flight_surety.creditInsurees(airline, flight, timestamp);
+
+        }
+
     }
 
 
@@ -190,6 +201,36 @@ contract FlightSuretyApp {
 
         emit OracleRequest(index, airline, flight, timestamp);
     } 
+
+     function registerAirline(address airline)
+                    external
+                    requireIsOperational
+                    requireIsCallerAuthorized
+                    requireIsCallerPaid
+                    requireNotAirlineAuthorized(airline)
+            {
+                flight_surety.registerAirline(airline, msg.sender);
+
+            }
+
+    function airlinePayAnte()
+                    requireIsOperational
+                    public
+            {
+                flight_surety.airlinePayAnte();
+
+            }
+
+    function isPaid() public view returns(bool){
+
+        return flight_surety.isAirlinePaid(msg.sender);
+    }
+
+    function isCallerAuthorized() public view 
+                                 returns(bool)
+        {
+            return flight_surety.isAirlineAuthorized(msg.sender);
+        }
 
 
       
@@ -364,35 +405,7 @@ contract FlightSuretyApp {
         return random;
     }
 
-    function registerAirline(address airline)
-                    external
-                    requireIsOperational
-                    requireIsCallerAuthorized
-                    requireIsCallerPaid
-                    requireNotAirlineAuthorized(airline)
-            {
-                flight_surety.registerAirline(airline, msg.sender);
-
-            }
-
-    function airlinePayAnte()
-                    requireIsOperational
-                    public
-            {
-                flight_surety.airlinePayAnte();
-
-            }
-
-    function isPaid() public view returns(bool){
-
-        return flight_surety.isAirlinePaid(msg.sender);
-    }
-
-    function isCallerAuthorized() public view 
-                                 returns(bool)
-        {
-            return flight_surety.isAirlineAuthorized(msg.sender);
-        }
+   
 // endregion
 
 }   

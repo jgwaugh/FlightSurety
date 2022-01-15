@@ -388,10 +388,10 @@ contract FlightSuretyData {
     {
         
         bytes32 flight_key = getFlightKey(airline, flight, timestamp);
-        address[] flight_list = flight_purchasees[flight_key]; 
+        // address[] flight_list = flight_purchasees[flight_key]; 
 
-        for (uint i=0; i<flight_list.length; i++) {
-            address passenger= flight_list[i];
+        for (uint i=0; i<flight_purchasees[flight_key].length; i++) {
+            address passenger= flight_purchasees[flight_key][i];
             credit_owed[passenger] = credit_owed[passenger] + insurance_purchases[passenger][flight_key] *3 / 2;
 
 
@@ -415,6 +415,7 @@ contract FlightSuretyData {
     *      resulting in insurance payouts, the contract should be self-sustaining
     *
     */   
+    // not to grader - my funding function is called "airline pay ante"
     function fund
                             (   
                             )
