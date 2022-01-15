@@ -29,6 +29,7 @@ contract FlightSuretyData {
     uint256 public constant REGISTRATION_FEE = 10 ether;
     uint256 public constant NO_CONSENSUS = 4;
     uint256 public n_airlines = 0;
+    uint256 public votes_needed = 3;
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
@@ -273,9 +274,14 @@ contract FlightSuretyData {
             success = true;
         } else {
             votes = voteCounts[airline];
-            uint ratio = votes/n_airlines * 100;
-            if( ratio > 50){
+            
+            if( votes >= votes_needed){
                 success = true;
+
+                if (n_airlines % 2 == 1){
+                    votes_needed = votes_needed + 1;
+                }
+
             }
         }
 
