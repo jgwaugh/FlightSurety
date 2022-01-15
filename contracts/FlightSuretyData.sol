@@ -22,14 +22,24 @@ contract FlightSuretyData {
     mapping(address => mapping(address => uint256)) public voteTracker; //tracks which airlines have voted on which flights
     mapping(address => uint256) public  hasBeenVoted; //tracks if voteTracker has null values
     mapping(address => uint256) public voteCounts; //counts of votes
+    mapping(address => mapping(bytes32 => uint256)) public insurance_purchases; //tracks how much insurance someone has bought
+    mapping(bytes32 => address []) public flight_purchasees;
+    
+    mapping(bytes32 => uint256) public flight_status;
+    mapping(address => uint256) public credit_owed;
 
     // mapping(address => uint256) public voteCounter;
     address private contractOwner;                                      // Account used to deploy contract
     bool private operational = true;                                    // Blocks all state changes throughout the contract if false
     uint256 public constant REGISTRATION_FEE = 10 ether;
+    uint256 public constant MAX_INSURANCE_PRICE = 1 ether;
     uint256 public constant NO_CONSENSUS = 4;
     uint256 public n_airlines = 0;
     uint256 public votes_needed = 3;
+
+    // 
+
+
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
@@ -62,6 +72,8 @@ contract FlightSuretyData {
     * @dev Modifier that requires the "operational" boolean variable to be "true"
     *      This is used on all state changing functions to pause the contract in 
     *      the event there is an issue that needs to be fixed
+
+
     */
     modifier requireIsOperational() 
     {
@@ -104,6 +116,13 @@ contract FlightSuretyData {
         _;
     }
 
+    modifier requireInsurancePriceLimited()
+    {
+
+        require(msg.value <= MAX_INSURANCE_PRICE, "Caller must pay <= 1 ether for insurace");
+        _;
+    }
+
     modifier requireIsAirlineAuthorized(address airline)
     {
         require(isAirlineAuthorized(airline), "Address has not been authorized - Data breaking");
@@ -116,6 +135,20 @@ contract FlightSuretyData {
         _;
     }
 
+    modifier requireisFlightCancelled(bytes32 flight) {
+        require(isFlightCancelled(flight), "Flight must be cancelled");
+        _;
+    }
+
+
+    function isFlightCancelled(bytes32 flight) public view returns(bool)
+        {
+            return flight_status[flight]== 1;
+        }
+
+    function setFlightCancelled(bytes32 flight) public {
+        flight_status[flight] = 1;
+    }
 
     function isAirlinePaid(address airline) public view returns(bool) 
         {
@@ -142,6 +175,7 @@ contract FlightSuretyData {
 
             return paidAirlines[msg.sender] == 1;
         }
+
 
     
 
@@ -321,24 +355,47 @@ contract FlightSuretyData {
     * @dev Buy insurance for a flight
     *
     */   
-    function buy
-                            (                             
-                            )
-                            external
-                            payable
+    function buy ( address passenger,
+                   address airline,
+                   string flight,
+                   uint256 timestamp                        
+                )
+                external
+                requireIsOperational
+                requireInsurancePriceLimited
+                payable
     {
+        bytes32 flight_key = getFlightKey(airline, flight, timestamp);
+        insurance_purchases[passenger][flight_key] = msg.value;
+        flight_purchasees[flight_key].push(passenger);
+
+
 
     }
 
     /**
      *  @dev Credits payouts to insurees
     */
-    function creditInsurees
-                                (
+    function creditInsurees( address airline,
+                             string flight,
+                             uint256 timestamp
                                 )
                                 external
-                                pure
+                                requireIsOperational
+                                requireisFlightCancelled(getFlightKey(airline, flight, timestamp)) 
+
+
     {
+        
+        bytes32 flight_key = getFlightKey(airline, flight, timestamp);
+        address[] flight_list = flight_purchasees[flight_key]; 
+
+        for (uint i=0; i<flight_list.length; i++) {
+            address passenger= flight_list[i];
+            credit_owed[passenger] = credit_owed[passenger] + insurance_purchases[passenger][flight_key] *3 / 2;
+
+
+    }
     }
     
 
@@ -346,13 +403,12 @@ contract FlightSuretyData {
      *  @dev Transfers eligible payout funds to insuree
      *
     */
-    function pay
-                            (
-                            )
-                            external
-                            pure
-    {
-    }
+    function pay(
+                address passenger
+                ) external                  
+        {
+            passenger.transfer(credit_owed[passenger]);
+        }
 
    /**
     * @dev Initial funding for the insurance. Unless there are too many delayed flights
@@ -373,7 +429,6 @@ contract FlightSuretyData {
                             string memory flight,
                             uint256 timestamp
                         )
-                        pure
                         internal
                         returns(bytes32) 
     {

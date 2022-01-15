@@ -400,6 +400,10 @@ contract FlightSuretyApp {
 contract FlightSuretyData {
     // function airlinePayAnte_External()  external;\
 
+    function isFlightCancelled(bytes32 flight) public view returns(bool);
+
+    function setFlightCancelled(bytes32 flight) public;
+
     function isAirlinePaid(address airline) 
                 public view  returns(bool);
 
@@ -443,10 +447,23 @@ contract FlightSuretyData {
                         public
                         view
                         returns(bool status);
-    function buy() external payable;
-    function creditInsurees() external pure;
-    function pay() external pure;
+    function buy ( address passenger,
+                   address airline,
+                   string flight,
+                   uint256 timestamp                        
+                )
+                external
+                payable;
+
+    function creditInsurees(address airline,
+                            string flight,
+                            uint256 timestamp)
+                            external;
+
+    function pay(address passenger) external;
+
     function getFlightKey(address airline,string memory flight,uint256 timestamp) pure internal returns(bytes32);
+
     function fund() public payable;
 
 
