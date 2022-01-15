@@ -72,7 +72,7 @@ contract FlightSuretyApp {
 
     modifier requireIsCallerAuthorized()
     {
-        require(flight_surety.isAirlineAuthorized(msg.sender), "Caller has not been authorized");
+        require(isCallerAuthorized(), "Caller has not been authorized - App breaking");
         _;
     }
 
@@ -371,7 +371,7 @@ contract FlightSuretyApp {
                     requireIsCallerPaid
                     requireNotAirlineAuthorized(airline)
             {
-                flight_surety.registerAirline(airline);
+                flight_surety.registerAirline(airline, msg.sender);
 
             }
 
@@ -385,11 +385,14 @@ contract FlightSuretyApp {
 
     function isPaid() public view returns(bool){
 
-        return flight_surety.isPaid();
+        return flight_surety.isAirlinePaid(msg.sender);
     }
 
-
-
+    function isCallerAuthorized() public view 
+                                 returns(bool)
+        {
+            return flight_surety.isAirlineAuthorized(msg.sender);
+        }
 // endregion
 
 }   
@@ -423,7 +426,7 @@ contract FlightSuretyData {
                     payable
                     ;
     
-    function registerAirline(address airline) 
+    function registerAirline(address airline, address existing_airline) 
                                 external 
                                 returns(bool success, uint256 votes);
     

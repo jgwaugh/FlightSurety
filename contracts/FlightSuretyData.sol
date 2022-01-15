@@ -17,10 +17,10 @@ contract FlightSuretyData {
     }
 
     mapping(string => Airline) airlines; 
-    mapping(address => uint256) private authorizedAirlines;
-    mapping(address => uint256) private paidAirlines;
+    mapping(address => uint256) public authorizedAirlines;
+    mapping(address => uint256) public paidAirlines;
     mapping(address => mapping(address => uint256)) public voteTracker; //tracks which airlines have voted on which flights
-    mapping(address => uint256) private hasBeenVoted; //tracks if voteTracker has null values
+    mapping(address => uint256) public  hasBeenVoted; //tracks if voteTracker has null values
     mapping(address => uint256) public voteCounts; //counts of votes
 
     // mapping(address => uint256) public voteCounter;
@@ -44,6 +44,7 @@ contract FlightSuretyData {
         contractOwner = msg.sender;
         paidAirlines[firstAirline] = 0;
         authorizedAirlines[firstAirline] = 1;
+        n_airlines = 1;
 
 
         // register the caller of the constructor
@@ -98,10 +99,15 @@ contract FlightSuretyData {
 
     modifier requireIsCallerAuthorized()
     {
-        require(isAirlineAuthorized(msg.sender), "Caller has not been authorized");
+        require(isAirlineAuthorized(msg.sender), "Caller has not been authorized - Data breaking");
         _;
     }
 
+    modifier requireIsAirlineAuthorized(address airline)
+    {
+        require(isAirlineAuthorized(airline), "Address has not been authorized - Data breaking");
+        _;
+    }
 
      modifier requireNotAirlineAuthorized(address airline)
     {
@@ -113,7 +119,7 @@ contract FlightSuretyData {
     function isAirlinePaid(address airline) public view returns(bool) 
         {
 
-            return paidAirlines[msg.sender] == 1;
+            return paidAirlines[airline] == 1;
         }
 
 
@@ -203,14 +209,17 @@ contract FlightSuretyData {
         }
 
 
-   /**
-    * @dev Add an airline to the registration queue
-    *      Can only be called from FlightSuretyApp contract
-    *
-    */   
-    // Because the function is external, it can only be called from outside - check
-    // Need check if Airline has enough votes
-    //    // requireNotAirlinePaid(msg.sender)
+    function getVoteCounts(address airline_vote)
+                            public
+                            view
+                            requireIsOperational
+                            returns(uint256 votes)
+        {
+            votes = voteCounts[airline_vote];
+            return votes;
+
+        }
+
 
     function airlinePayAnte ()
                     external
@@ -239,13 +248,17 @@ contract FlightSuretyData {
 
 
 // // external
-    function registerAirline( address airline    
+  // requireIsCallerAuthorized
+                            // requireIsCallerPaid
+    function registerAirline( address airline,
+                              address existing_airline
+
                             )
                             
                             external
                             requireIsOperational
-                            requireIsCallerAuthorized
-                            requireIsCallerPaid
+                            requireIsAirlinePaid(existing_airline)
+                            requireIsAirlineAuthorized(existing_airline)
                             requireNotAirlineAuthorized(airline)
                             returns(bool success, uint256 votes)
 
@@ -256,12 +269,12 @@ contract FlightSuretyData {
         // uint256 votes = 0;
 
         // check if we are in the initial stages
-        if (n_airlines <= NO_CONSENSUS){
+        if (n_airlines < NO_CONSENSUS){
             success = true;
         } else {
             votes = voteCounts[airline];
             uint ratio = votes/n_airlines * 100;
-            if( ratio >= 50){
+            if( ratio > 50){
                 success = true;
             }
         }
@@ -285,6 +298,17 @@ contract FlightSuretyData {
                 return status;
 
             }
+
+    function getAirlineCount()
+                            public
+                            view
+                            requireIsOperational
+                            returns(uint256 n_airlines_out)
+
+                {
+                    n_airlines_out = n_airlines;
+                    return n_airlines_out;
+                }
 
 
    /**
